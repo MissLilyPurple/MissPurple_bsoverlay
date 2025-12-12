@@ -25,7 +25,6 @@
             opacity: 0;
             transform: translateX(-40px);
             transition: opacity 0.35s ease, transform 0.35s ease;
-
             width: var(--box-w);
             height: var(--box-h);
             background: linear-gradient(to top, var(--lilac) 0%, transparent 40%);
@@ -46,10 +45,10 @@
             left: 10px;
         }
 
-        #overlay-box.is-visible {
-            opacity: 1;
-            transform: translateX(0);
-        }
+            #overlay-box.is-visible {
+                opacity: 1;
+                transform: translateX(0);
+            }
 
         #left-panel {
             display: flex;
@@ -94,11 +93,20 @@
             text-shadow: 0 0 4px #b26eff, 0 0 8px #c892ff, 0 0 14px #d9aaff;
         }
 
-        #artist { opacity: 0.8; margin-bottom: 15px; }
+        #artist {
+            opacity: 0.8;
+            margin-bottom: 15px;
+        }
 
-        #stats-row { display: flex; gap: 20px; font-weight: 600; }
+        #stats-row {
+            display: flex;
+            gap: 20px;
+            font-weight: 600;
+        }
 
-        #rank { font-weight: 700; }
+        #rank {
+            font-weight: 700;
+        }
 
         #difficulty {
             font-weight: 700;
@@ -110,11 +118,29 @@
             display: flex;
             justify-content: space-between;
             font-weight: 600;
-            
-
         }
 
-        #combo { transition: transform 0.15s ease; }
+        #combo {
+            transition: transform 0.15s ease;
+        }
+
+        #progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient( 90deg, #9f63ff, #c892ff, #9f63ff );
+            border-radius: 4px;
+            transition: width 0.25s linear;
+        }
+
     </style>
 </head>
 
@@ -143,110 +169,125 @@
                 <span id="time-elapsed">0:00</span>
                 <span id="time-total">0:00</span>
             </div>
+            <div id="progress-bar">
+                <div id="progress-fill"></div>
+            </div>
+
         </div>
     </div>
 
-<script>
-/* ----------------- Utils ----------------- */
-function fmtTime(sec){
-    if(!sec || sec < 0) return "0:00";
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-}
-
-/* ----------------- Overlay Animation ----------------- */
-const overlay = document.getElementById("overlay-box");
-let lastLiveUpdate = 0;
-
-function showOverlay(){ overlay.classList.add("is-visible"); }
-function hideOverlay(){ overlay.classList.remove("is-visible"); }
-
-function tickOverlayVisibility(){
-    const now = Date.now();
-
-    if(now - lastLiveUpdate > 1500){ hideOverlay(); }
-    else { showOverlay(); }
-
-    requestAnimationFrame(tickOverlayVisibility);
-}
-
-tickOverlayVisibility();
-
-/* ----------------- DOM elems ----------------- */
-const albumArtEl = document.getElementById("album-art");
-const songNameEl = document.getElementById("songname");
-const artistEl = document.getElementById("artist");
-const bsrEl = document.getElementById("bsrcode");
-const comboEl = document.getElementById("combo");
-const rankEl = document.getElementById("rank");
-const difficultyEl = document.getElementById("difficulty");
-const timeElapsedEl = document.getElementById("time-elapsed");
-const timeTotalEl = document.getElementById("time-total");
-
-const LIVE_URL = "ws://localhost:2946/BSDataPuller/LiveData";
-const MAP_URL  = "ws://localhost:2946/BSDataPuller/MapData";
-
-/* ----------------- WS Helper ----------------- */
-function createWS(url, onMessage){
-    let ws = new WebSocket(url);
-
-    ws.onmessage = evt => onMessage(evt.data);
-    ws.onclose = () => setTimeout(() => createWS(url, onMessage), 1000);
-}
-
-/* ----------------- Live Data ----------------- */
-function handleLive(raw){
-    let d;
-    try { d = JSON.parse(raw); } catch { return; }
-
-    lastLiveUpdate = Date.now();
-
-    if (d.Combo !== undefined)
-        comboEl.textContent = `Combo: ${d.Combo}`;
-
-    if (d.Rank !== undefined)
-        rankEl.textContent = `Rank: ${d.Rank}`;
-
-    const elapsed = d.TimeElapsed ?? d.LevelTime ?? d.songTime ?? d.time ?? 0;
-    timeElapsedEl.textContent = fmtTime(elapsed);
-}
-
-/* ----------------- Map Data ----------------- */
-   function prettyDifficulty(diff) {
-     if (!diff) return "-";
-     if (diff === "ExpertPlus") return "Expert+";
-     return diff;
- }
-    
-   function handleMap(raw){
-     let m;
-     try { m = JSON.parse(raw); } catch { return; }
-
-    songNameEl.textContent = m.SongName ?? "-";
-    artistEl.textContent  = m.SongAuthor ?? "-";
-    bsrEl.textContent     = `!bsr ${m.BSRKey ?? "-"}`;
-    difficultyEl.textContent =
-    "Difficulty: " + prettyDifficulty(m.Difficulty);
-
-    if (m.Duration !== undefined)
-        timeTotalEl.textContent = fmtTime(m.Duration);
-
-    let cover = m.CoverImage;
-    if (cover){
-        if (cover.startsWith("http")) albumArtEl.src = cover;
-        else {
-            if (!cover.startsWith("data:image")) cover = "data:image/png;base64," + cover;
-            albumArtEl.src = cover;
+    <script>
+        /* ----------------- Utils ----------------- */
+        function fmtTime(sec) {
+            if (!sec || sec < 0) return "0:00";
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60).toString().padStart(2, "0");
+            return `${m}:${s}`;
         }
-    }
-}
 
-/* ----------------- Start WS ----------------- */
-createWS(LIVE_URL, handleLive);
-createWS(MAP_URL,  handleMap);
+        /* ----------------- Overlay Animation ----------------- */
+        const overlay = document.getElementById("overlay-box");
+        let lastLiveUpdate = 0;
 
-</script>
+        function showOverlay() { overlay.classList.add("is-visible"); }
+        function hideOverlay() { overlay.classList.remove("is-visible"); }
+
+        function tickOverlayVisibility() {
+            const now = Date.now();
+
+            if (now - lastLiveUpdate > 1500) { hideOverlay(); }
+            else { showOverlay(); }
+
+            requestAnimationFrame(tickOverlayVisibility);
+        }
+
+        tickOverlayVisibility();
+
+        /* ----------------- DOM elems ----------------- */
+        const albumArtEl = document.getElementById("album-art");
+        const songNameEl = document.getElementById("songname");
+        const artistEl = document.getElementById("artist");
+        const bsrEl = document.getElementById("bsrcode");
+        const comboEl = document.getElementById("combo");
+        const rankEl = document.getElementById("rank");
+        const difficultyEl = document.getElementById("difficulty");
+        const timeElapsedEl = document.getElementById("time-elapsed");
+        const timeTotalEl = document.getElementById("time-total");
+        const progressFillEl = document.getElementById("progress-fill");
+
+
+        const LIVE_URL = "ws://localhost:2946/BSDataPuller/LiveData";
+        const MAP_URL = "ws://localhost:2946/BSDataPuller/MapData";
+
+        /* ----------------- WS Helper ----------------- */
+        function createWS(url, onMessage) {
+            let ws = new WebSocket(url);
+
+            ws.onmessage = evt => onMessage(evt.data);
+            ws.onclose = () => setTimeout(() => createWS(url, onMessage), 1000);
+        }
+
+        /* ----------------- Live Data ----------------- */
+        function handleLive(raw) {
+            let d;
+            try { d = JSON.parse(raw); } catch { return; }
+
+            lastLiveUpdate = Date.now();
+
+            if (d.Combo !== undefined)
+                comboEl.textContent = `Combo: ${d.Combo}`;
+
+            if (d.Rank !== undefined)
+                rankEl.textContent = `Rank: ${d.Rank}`;
+
+            const elapsed = d.TimeElapsed ?? d.LevelTime ?? d.songTime ?? d.time ?? 0;
+            timeElapsedEl.textContent = fmtTime(elapsed);
+            if (timeTotalEl.textContent !== "0:00") {
+                const totalSec =
+                    (timeTotalEl.textContent.split(":")[0] * 60) +
+                    Number(timeTotalEl.textContent.split(":")[1]);
+
+                if (totalSec > 0) {
+                    const percent = Math.min((elapsed / totalSec) * 100, 100);
+                    progressFillEl.style.width = percent + "%";
+                }
+            }
+        }
+
+        /* ----------------- Map Data ----------------- */
+        function prettyDifficulty(diff) {
+            if (!diff) return "-";
+            if (diff === "ExpertPlus") return "Expert+";
+            return diff;
+        }
+
+        function handleMap(raw) {
+            let m;
+            try { m = JSON.parse(raw); } catch { return; }
+
+            songNameEl.textContent = m.SongName ?? "-";
+            artistEl.textContent = m.SongAuthor ?? "-";
+            bsrEl.textContent = `!bsr ${m.BSRKey ?? "-"}`;
+            difficultyEl.textContent =
+                "Difficulty: " + prettyDifficulty(m.Difficulty);
+
+            if (m.Duration !== undefined)
+                timeTotalEl.textContent = fmtTime(m.Duration);
+
+            let cover = m.CoverImage;
+            if (cover) {
+                if (cover.startsWith("http")) albumArtEl.src = cover;
+                else {
+                    if (!cover.startsWith("data:image")) cover = "data:image/png;base64," + cover;
+                    albumArtEl.src = cover;
+                }
+            }
+        }
+
+        /* ----------------- Start WS ----------------- */
+        createWS(LIVE_URL, handleLive);
+        createWS(MAP_URL, handleMap);
+
+    </script>
 </body>
 </html>
-
