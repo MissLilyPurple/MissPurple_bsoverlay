@@ -1,6 +1,7 @@
 # Miss_Lily_Purple Beat Saber OBS Overlay
 
-<img width="415" height="160" alt="Képernyőkép 2025-12-12 163201" src="https://github.com/user-attachments/assets/abce0c5e-5d7b-4fc9-ae09-3ca0ca673122" />
+<img width="425" height="163" alt="Képernyőkép 2025-12-12 202913" src="https://github.com/user-attachments/assets/68dfa499-bd37-499b-a586-1acb3c732533" />
+
 
 A lightweight, customizable Beat Saber song overlay for OBS, powered by **Beat Saber DataPuller**.
 
