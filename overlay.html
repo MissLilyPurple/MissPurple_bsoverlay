@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Beat Saber Overlay</title>
+    <style>
+        :root {
+            --box-w: 500px;
+            --box-h: 180px;
+            --lilac: rgba(72, 51, 105, 0.6);
+            --text-color: #ffffff;
+            --font-size: 20px;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            background: transparent;
+        }
+
+        /* --- CLEAN SLIDE + FADE ANIMÁCIÓ --- */
+        #overlay-box {
+            opacity: 0;
+            transform: translateX(-40px);
+            transition: opacity 0.35s ease, transform 0.35s ease;
+
+            width: var(--box-w);
+            height: var(--box-h);
+            background: linear-gradient(to top, var(--lilac) 0%, transparent 40%);
+            box-sizing: border-box;
+            padding: 8px 10px 40px 10px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: row;
+            gap: 15px;
+            font-family: "Press Start 2P", monospace;
+            color: var(--text-color);
+            font-size: 15px;
+            line-height: 1.1;
+            position: fixed;
+            top: 10px;
+            left: 10px;
+        }
+
+        #overlay-box.is-visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        #left-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 130px;
+        }
+
+        #album-art {
+            width: 110px;
+            height: 110px;
+            border-radius: 15px;
+            box-shadow: 0 0 10px rgba(120, 0, 255, 0.7);
+            background: #222;
+            object-fit: cover;
+        }
+
+        #bsrcode {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        #right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        #songname {
+            font-weight: 700;
+            font-size: 1.2em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+            text-shadow: 0 0 4px #b26eff, 0 0 8px #c892ff, 0 0 14px #d9aaff;
+        }
+
+        #artist { opacity: 0.8; margin-bottom: 15px; }
+
+        #stats-row { display: flex; gap: 20px; font-weight: 600; }
+
+        #rank { font-weight: 700; }
+
+        #difficulty {
+            font-weight: 700;
+            margin-top: 8px;
+            text-shadow: 0 0 4px #b26eff, 0 0 8px #c892ff, 0 0 14px #d9aaff;
+        }
+
+        #time-row {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            
+        }
+
+        #combo { transition: transform 0.15s ease; }
+    </style>
+</head>
+
+<body>
+    <div id="overlay-box">
+
+        <div id="left-panel">
+            <img id="album-art" src="" alt="Album Art" />
+            <span id="bsrcode">!bsr -</span>
+        </div>
+
+        <div id="right-panel">
+            <div>
+                <div id="songname">-</div>
+                <div id="artist">-</div>
+            </div>
+
+            <div id="stats-row">
+                <span id="rank">Rank: -</span>
+                <span id="combo">Combo: 0</span>
+            </div>
+
+            <div id="difficulty" class="difficulty-Unknown">Difficulty: -</div>
+
+            <div id="time-row">
+                <span id="time-elapsed">0:00</span>
+                <span id="time-total">0:00</span>
+            </div>
+        </div>
+    </div>
+
+<script>
+/* ----------------- Utils ----------------- */
+function fmtTime(sec){
+    if(!sec || sec < 0) return "0:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+}
+
+/* ----------------- Overlay Animation ----------------- */
+const overlay = document.getElementById("overlay-box");
+let lastLiveUpdate = 0;
+
+function showOverlay(){ overlay.classList.add("is-visible"); }
+function hideOverlay(){ overlay.classList.remove("is-visible"); }
+
+function tickOverlayVisibility(){
+    const now = Date.now();
+
+    if(now - lastLiveUpdate > 1500){ hideOverlay(); }
+    else { showOverlay(); }
+
+    requestAnimationFrame(tickOverlayVisibility);
+}
+
+tickOverlayVisibility();
+
+/* ----------------- DOM elems ----------------- */
+const albumArtEl = document.getElementById("album-art");
+const songNameEl = document.getElementById("songname");
+const artistEl = document.getElementById("artist");
+const bsrEl = document.getElementById("bsrcode");
+const comboEl = document.getElementById("combo");
+const rankEl = document.getElementById("rank");
+const difficultyEl = document.getElementById("difficulty");
+const timeElapsedEl = document.getElementById("time-elapsed");
+const timeTotalEl = document.getElementById("time-total");
+
+const LIVE_URL = "ws://localhost:2946/BSDataPuller/LiveData";
+const MAP_URL  = "ws://localhost:2946/BSDataPuller/MapData";
+
+/* ----------------- WS Helper ----------------- */
+function createWS(url, onMessage){
+    let ws = new WebSocket(url);
+
+    ws.onmessage = evt => onMessage(evt.data);
+    ws.onclose = () => setTimeout(() => createWS(url, onMessage), 1000);
+}
+
+/* ----------------- Live Data ----------------- */
+function handleLive(raw){
+    let d;
+    try { d = JSON.parse(raw); } catch { return; }
+
+    lastLiveUpdate = Date.now();
+
+    if (d.Combo !== undefined)
+        comboEl.textContent = `Combo: ${d.Combo}`;
+
+    if (d.Rank !== undefined)
+        rankEl.textContent = `Rank: ${d.Rank}`;
+
+    const elapsed = d.TimeElapsed ?? d.LevelTime ?? d.songTime ?? d.time ?? 0;
+    timeElapsedEl.textContent = fmtTime(elapsed);
+}
+
+/* ----------------- Map Data ----------------- */
+function handleMap(raw){
+    let m;
+    try { m = JSON.parse(raw); } catch { return; }
+
+    songNameEl.textContent = m.SongName ?? "-";
+    artistEl.textContent  = m.SongAuthor ?? "-";
+    bsrEl.textContent     = `!bsr ${m.BSRKey ?? "-"}`;
+
+    if (m.Duration !== undefined)
+        timeTotalEl.textContent = fmtTime(m.Duration);
+
+    let cover = m.CoverImage;
+    if (cover){
+        if (cover.startsWith("http")) albumArtEl.src = cover;
+        else {
+            if (!cover.startsWith("data:image")) cover = "data:image/png;base64," + cover;
+            albumArtEl.src = cover;
+        }
+    }
+}
+
+/* ----------------- Start WS ----------------- */
+createWS(LIVE_URL, handleLive);
+createWS(MAP_URL,  handleMap);
+
+</script>
+</body>
+</html>
