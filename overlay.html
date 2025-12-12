@@ -179,6 +179,7 @@
     <script>
         /* ----------------- Utils ----------------- */
         function fmtTime(sec) {
+            let songDurationSec = 0;
             if (!sec || sec < 0) return "0:00";
             const m = Math.floor(sec / 60);
             const s = Math.floor(sec % 60).toString().padStart(2, "0");
@@ -272,6 +273,7 @@
                 "Difficulty: " + prettyDifficulty(m.Difficulty);
 
             if (m.Duration !== undefined)
+                songDurationSec = m.Duration;
                 timeTotalEl.textContent = fmtTime(m.Duration);
 
             let cover = m.CoverImage;
@@ -291,3 +293,4 @@
     </script>
 </body>
 </html>
+
