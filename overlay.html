@@ -213,13 +213,21 @@ function handleLive(raw){
 }
 
 /* ----------------- Map Data ----------------- */
-function handleMap(raw){
-    let m;
-    try { m = JSON.parse(raw); } catch { return; }
+   function prettyDifficulty(diff) {
+     if (!diff) return "-";
+     if (diff === "ExpertPlus") return "Expert+";
+     return diff;
+ }
+    
+   function handleMap(raw){
+     let m;
+     try { m = JSON.parse(raw); } catch { return; }
 
     songNameEl.textContent = m.SongName ?? "-";
     artistEl.textContent  = m.SongAuthor ?? "-";
     bsrEl.textContent     = `!bsr ${m.BSRKey ?? "-"}`;
+    difficultyEl.textContent =
+    "Difficulty: " + prettyDifficulty(m.Difficulty);
 
     if (m.Duration !== undefined)
         timeTotalEl.textContent = fmtTime(m.Duration);
@@ -241,3 +249,4 @@ createWS(MAP_URL,  handleMap);
 </script>
 </body>
 </html>
+
